@@ -142,13 +142,28 @@ smtutil::Expression SymbolicState::txMember(string const& _member) const
 	return m_tx.member(_member);
 }
 
+// TODO: This function was added as a workaround to ensure that `difficulty` and `prevrandao`
+// are the same in SMT encoding since `block.difficulty` is still part of the language until `0.9.0`.
+// We should refactor it before `0.9.0` release and remove `difficulty`.
+smtutil::Expression SymbolicState::evmParisConstraints() const
+{
+	smtutil::Expression prevrandao = txMember("block.prevrandao");
+	// Ensure prevrandao range as defined by EIP-4399.
+	smtutil::Expression prevrandaoLowerBound = prevrandao > (u256(1) << 64);
+	// Note: This constraint ensures that difficulty and prevrandao are equal in the SMT encoding.
+	return prevrandaoLowerBound && (txMember("block.difficulty") == prevrandao);
+}
+
 smtutil::Expression SymbolicState::txTypeConstraints() const
 {
+	// TODO: Remove `block.difficulty` and evmParisConstraints in 0.9.0
 	return
+		evmParisConstraints() &&
 		smt::symbolicUnknownConstraints(m_tx.member("block.basefee"), TypeProvider::uint256()) &&
 		smt::symbolicUnknownConstraints(m_tx.member("block.chainid"), TypeProvider::uint256()) &&
 		smt::symbolicUnknownConstraints(m_tx.member("block.coinbase"), TypeProvider::address()) &&
 		smt::symbolicUnknownConstraints(m_tx.member("block.difficulty"), TypeProvider::uint256()) &&
+		smt::symbolicUnknownConstraints(m_tx.member("block.prevrandao"), TypeProvider::uint256()) &&
 		smt::symbolicUnknownConstraints(m_tx.member("block.gaslimit"), TypeProvider::uint256()) &&
 		smt::symbolicUnknownConstraints(m_tx.member("block.number"), TypeProvider::uint256()) &&
 		smt::symbolicUnknownConstraints(m_tx.member("block.timestamp"), TypeProvider::uint256()) &&
