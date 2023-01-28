@@ -449,10 +449,14 @@ void SMTEncoder::endVisit(UnaryOperation const& _op)
 	if (_op.annotation().type->category() == Type::Category::RationalNumber)
 		return;
 
-	if (TokenTraits::isBitOp(_op.getOperator()))
+	if (TokenTraits::isBitOp(_op.getOperator()) && !*_op.annotation().userDefinedFunction)
 		return bitwiseNotOperation(_op);
 
 	createExpr(_op);
+
+	// User-defined operators are essentially function calls.
+	if (*_op.annotation().userDefinedFunction)
+		return;
 
 	auto const* subExpr = innermostTuple(_op.subExpression());
 	auto type = _op.annotation().type;
@@ -524,7 +528,7 @@ bool SMTEncoder::visit(BinaryOperation const& _op)
 {
 	if (shortcutRationalNumber(_op))
 		return false;
-	if (TokenTraits::isBooleanOp(_op.getOperator()))
+	if (TokenTraits::isBooleanOp(_op.getOperator()) && !*_op.annotation().userDefinedFunction)
 	{
 		booleanOperation(_op);
 		return false;
@@ -537,10 +541,14 @@ void SMTEncoder::endVisit(BinaryOperation const& _op)
 	/// If _op is const evaluated the RationalNumber shortcut was taken.
 	if (isConstant(_op))
 		return;
-	if (TokenTraits::isBooleanOp(_op.getOperator()))
+	if (TokenTraits::isBooleanOp(_op.getOperator()) && !*_op.annotation().userDefinedFunction)
 		return;
 
 	createExpr(_op);
+
+	// User-defined operators are essentially function calls.
+	if (*_op.annotation().userDefinedFunction)
+		return;
 
 	if (TokenTraits::isArithmeticOp(_op.getOperator()))
 		arithmeticOperation(_op);
